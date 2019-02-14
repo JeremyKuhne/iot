@@ -5,6 +5,7 @@
 using System;
 using System.Device.Spi;
 using Xunit;
+using Moq;
 
 namespace Iot.Device.Mcp23xxx.Tests
 {
@@ -31,10 +32,11 @@ namespace Iot.Device.Mcp23xxx.Tests
         [InlineData(0x27, true, 0b0100_1111)]
         public void Get_OpCode(int deviceAddress, bool isReadCommand, byte expectedOpCode)
         {
-            SpiMock spiMock = new SpiMock();
+            var spiMock = new Mock<SpiDevice>();
+            spiMock.Setup(spi => spi.ReadByte()).Returns(0x42);
 
             // The Mcp23s17 is the only SPI device that supports all 8 addresses
-            Mcp23s17 mcp23S08 = new Mcp23s17(spiMock, deviceAddress);
+            Mcp23s17 mcp23S08 = new Mcp23s17(spiMock.Object, deviceAddress);
             if (isReadCommand)
             {
                 mcp23S08.ReadByte(Register.GPIO);
@@ -43,7 +45,8 @@ namespace Iot.Device.Mcp23xxx.Tests
             {
                 mcp23S08.WriteByte(Register.GPIO, 0xA1);
             }
-            Assert.Equal(expectedOpCode, spiMock.LastInitialWriteByte);
+
+            spiMock.Verify(spi => spi.Write(new byte[] { expectedOpCode }), Times.Once);
         }
 
         private class SpiMock : SpiDevice
